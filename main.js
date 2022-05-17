@@ -3,14 +3,11 @@
 // ergonomic example, see `tests/basic-0.js` in this workspace.
 
 const anchor = require('@project-serum/anchor');
+require('dotenv').config();
 
 // Configure the local cluster.
 if (false) {
-  anchor.setProvider(
-    anchor.AnchorProvider.local(
-      'https://patient-withered-forest.solana-devnet.quiknode.pro/585faa3d9fc3bcc1ad3621f799c936bae8fbd365/',
-    ),
-  );
+  anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
 } else {
   anchor.setProvider(anchor.AnchorProvider.local());
 }
