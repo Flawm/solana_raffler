@@ -249,7 +249,7 @@ pub struct FixedTicketAccount {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct FixedEntry {
     pub buyer: Pubkey,
-    pub winner: bool
+    pub wins: u8
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug)]
