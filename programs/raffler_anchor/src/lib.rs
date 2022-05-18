@@ -25,14 +25,14 @@ pub mod raffler_anchor {
 
         // later
         if data.fixed == false {
-            return err!(CustomError::InputError);
+            return err!(CustomError::FixedError);
         }
 
-//        let clock = Clock::get()?;
+        let clock = Clock::get()?;
 
 //        // ...? & raffles must be open for atleast one hour
 //        if data.end < clock.unix_timestamp || data.start + 60 * 60 < data.end {
-//            return err!(CustomError::InputError);
+//            return err!(CustomError::TimeError);
 //        }
 
         let raffle = &mut ctx.accounts.raffle;
@@ -42,6 +42,7 @@ pub mod raffler_anchor {
         raffle.prize = ctx.accounts.mint_prize.key();
         raffle.prize_quantity = data.prize_quantity;
         raffle.tickets_purchased = 0;
+        raffle.decimals = data.decimals;
         raffle.price = data.price;
         raffle.start = data.start;
         raffle.end = data.end;
@@ -54,13 +55,15 @@ pub mod raffler_anchor {
         raffle.burn = data.burn;
         raffle.fixed = data.fixed;
 
+        let decimals = (ctx.accounts.mint_prize.decimals - raffle.decimals) as u32;
+
         anchor_spl::token::transfer(
             CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Transfer {
                 from: ctx.accounts.token_prize.to_account_info(),
                 to:  ctx.accounts.escrow_token.to_account_info(),
                 authority:  ctx.accounts.payer.to_account_info()
             }),
-            raffle.prize_quantity * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+            raffle.prize_quantity * 10_u64.pow(decimals),
         )?;
 
         ctx.accounts.fixed_raffle.raffle_id = ctx.accounts.raffle.key();
@@ -99,6 +102,8 @@ pub mod raffler_anchor {
             &[raffle.bump]
         ]];
 
+        let decimals = (ctx.accounts.mint_prize.decimals - raffle.decimals) as u32;
+
         // take prize tokens back from escrow
         anchor_spl::token::transfer(
             CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Transfer {
@@ -109,7 +114,7 @@ pub mod raffler_anchor {
                 seeds
             ),
             // draw back the prize tokens if there are any left over
-            (raffle.prize_quantity - (raffle.per_win * raffle.sent_out as u64)) * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+            (raffle.prize_quantity - (raffle.per_win * raffle.sent_out as u64)) * 10_u64.pow(decimals),
         )?;
 
         if raffle.burn && !is_admin {
@@ -122,7 +127,7 @@ pub mod raffler_anchor {
                     },
                     seeds
                 ),
-                raffle.tickets_purchased * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+                raffle.tickets_purchased * 10_u64.pow(decimals),
             )?;
         } else {
             // take paid tokens back from escrow
@@ -134,7 +139,7 @@ pub mod raffler_anchor {
                     },
                     seeds
                 ),
-                raffle.tickets_purchased * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+                raffle.tickets_purchased * 10_u64.pow(decimals),
             )?;
         }
 
@@ -142,14 +147,28 @@ pub mod raffler_anchor {
         let fixed_raffle = ctx.accounts.fixed_raffle.to_account_info();
 
         let payer = ctx.accounts.payer.to_account_info();
+        let vlawmz = ctx.accounts.vlawmz.to_account_info();
 
-        let mut payer_lams  = payer.lamports.borrow_mut();
-        let mut escrow_lams = raffle.lamports.borrow_mut();
-        let mut fixed_raffle_lams = fixed_raffle.lamports.borrow_mut();
-        **payer_lams += **escrow_lams;
-        **escrow_lams = 0;
-        **payer_lams += **fixed_raffle_lams;
-        **fixed_raffle_lams = 0;
+            let mut escrow_lams = raffle.lamports.borrow_mut();
+            let mut fixed_raffle_lams = fixed_raffle.lamports.borrow_mut();
+
+        if payer.key == vlawmz.key {
+            let mut payer_lams  = payer.lamports.borrow_mut();
+            **payer_lams += **escrow_lams;
+            **escrow_lams = 0;
+            **payer_lams += **fixed_raffle_lams;
+            **fixed_raffle_lams = 0;
+        } else {
+            let mut vlawmz_lams = vlawmz.lamports.borrow_mut();
+            let mut payer_lams  = payer.lamports.borrow_mut();
+
+            **vlawmz_lams += **escrow_lams;
+            **vlawmz_lams += **fixed_raffle_lams / 10;
+            **escrow_lams = 0;
+
+            **payer_lams += **fixed_raffle_lams - **fixed_raffle_lams / 10;
+            **fixed_raffle_lams = 0;
+        }
 
         Ok(())
     }
@@ -159,7 +178,7 @@ pub mod raffler_anchor {
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
-        if &ticket_data[8..40] != raffle.id.as_ref() {
+        if &ticket_data[8..40] != raffle.id.as_ref() || raffle.owner == *ctx.accounts.payer.key {
             return err!(CustomError::InputError);
         }
 
@@ -169,13 +188,13 @@ pub mod raffler_anchor {
             return err!(CustomError::TooMany);
         }
 
-        if clock.unix_timestamp > raffle.end {
-            return err!(CustomError::RaffleEnded);
-        }
-
-        if clock.unix_timestamp < raffle.start {
-            return err!(CustomError::TooEarly);
-        }
+//        if clock.unix_timestamp > raffle.end {
+//            return err!(CustomError::TooLate);
+//        }
+//
+//        if clock.unix_timestamp < raffle.start {
+//            return err!(CustomError::TooEarly);
+//        }
 
         if amount > raffle.max_entries - raffle.tickets_purchased || raffle.max_entries <= raffle.tickets_purchased {
             return err!(CustomError::NotEnough);
@@ -219,6 +238,7 @@ pub mod raffler_anchor {
             raffle.price * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32) * amount,
         )?;
 
+        // vec size
         ticket_data[RAFFLE_ENTRY_OFFSET - 4 .. RAFFLE_ENTRY_OFFSET].copy_from_slice(&raffle.tickets_purchased.to_le_bytes()[..4]);
 
         Ok(())
@@ -230,7 +250,7 @@ pub mod raffler_anchor {
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
         if &ticket_data[8..40] != raffle.id.as_ref() {
-            return err!(CustomError::NoWinners);
+            return err!(CustomError::InputError);
         }
 
         // all winners need to be set first
@@ -280,11 +300,10 @@ pub mod raffler_anchor {
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
         if &ticket_data[8..40] != raffle.id.as_ref() {
-msg!("d");
             return err!(CustomError::InputError);
         }
 
-//        let clock = Clock::get()?;
+        let clock = Clock::get()?;
 
 //        if clock.unix_timestamp < raffle.end {
 //            return err!(CustomError::RaffleGoing);

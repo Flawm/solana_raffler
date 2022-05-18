@@ -117,7 +117,12 @@ pub struct CloseRaffle<'info> {
         constraint = raffle.key() == escrow_token_cost.owner,
         constraint = escrow_token_cost.mint == mint.key()
     )]
-    pub escrow_token_cost: Box<Account<'info, TokenAccount>>
+    pub escrow_token_cost: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = vlawmz.key().to_string() == VLAWMZ_KEY,
+    )]
+    pub vlawmz: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -225,6 +230,7 @@ pub struct RaffleAccount {
     pub ticket_count: u64,
     pub max_entries: u64,
     pub per_win: u64,
+    pub decimals: u8,
     pub win_multiple: bool,
     pub bump: u8,
     pub burn: bool,
@@ -260,6 +266,7 @@ pub struct CreateRaffleData {
     pub end:      i64,
     pub max_entries: u64,
     pub per_win:     u64,
+    pub decimals: u8,
     pub win_multiple: bool,
     pub burn: bool,
     pub fixed: bool,

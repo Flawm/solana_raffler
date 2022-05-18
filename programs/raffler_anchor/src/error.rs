@@ -11,7 +11,7 @@ pub enum CustomError {
     NotEnough,
 
     #[msg("Raffle has ended!")]
-    RaffleEnded,
+    TooLate,
 
     #[msg("Raffle has started!")]
     RaffleStarted,
@@ -25,9 +25,6 @@ pub enum CustomError {
     #[msg("The raffle is still going!")]
     RaffleGoing,
 
-    #[msg("No winners")]
-    NoWinners,
-
     #[msg("Winners already picked")]
     WinnersAlreadyPicked,
 
@@ -35,5 +32,11 @@ pub enum CustomError {
     AllWinnersPaid,
 
     #[msg("You need to finish paying out the winners!")]
-    CantScam
+    CantScam,
+
+    #[msg("The time parameters don't add up.")]
+    TimeError,
+    #[msg("The payment needs to come to an even number!")]
+
+    FixedError
 }

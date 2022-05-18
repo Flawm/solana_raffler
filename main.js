@@ -3,7 +3,10 @@
 // ergonomic example, see `tests/basic-0.js` in this workspace.
 
 const anchor = require('@project-serum/anchor');
+const fs = require('fs');
 require('dotenv').config();
+
+process.env.ANCHOR_WALLET = process.env.wallet;
 
 let connection;
 // Configure the local cluster.
@@ -135,15 +138,17 @@ async function testCloseRaffle(force_close) {
   const mint = new anchor.web3.PublicKey(
       'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
     ),
-    tokenPrize = new anchor.web3.PublicKey(
-      '5fMmdFk5cQEPjAJvKo989ta87NHfxZeMjnmNegdiAmf7',
-    ),
-    tokenCost = new anchor.web3.PublicKey(
-      '9aazTwWBFME3o4pNrXNCAjVgMAQXGP3uZcZGRsENvi4M',
-    ),
     mintPrize = new anchor.web3.PublicKey(
       'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
     ),
+    tokenPrize = await anchor.utils.token.associatedAddress({
+      mint: mintPrize,
+      owner: payer.wallet.publicKey,
+    }),
+    tokenCost = await anchor.utils.token.associatedAddress({
+      mint: mint,
+      owner: payer.wallet.publicKey,
+    }),
     [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
       [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
       programId,
@@ -177,6 +182,9 @@ async function testCloseRaffle(force_close) {
       escrowTokenPrize,
       escrowTokenCost,
       fixedRaffle: fixedRaffle.publicKey,
+      vlawmz: new anchor.web3.PublicKey(
+        'VLawmZTgLAbdeqrU579ohsdey9H1h3Mi1UeUJpg2mQB',
+      ),
     },
   };
 
@@ -231,7 +239,7 @@ async function testBuyRaffle() {
 }
 
 const raffler_idl = JSON.parse(
-    require('fs').readFileSync('./target/idl/raffler_anchor.json', 'utf8'),
+    fs.readFileSync('./target/idl/raffler_anchor.json', 'utf8'),
   ),
   programId = new anchor.web3.PublicKey(
     '3XsaSBCDT4JhRuxpWjHRTYkzKLqWRgCuN1wyggvFuSsM',
@@ -424,10 +432,6 @@ async function testSendWinner() {
         recipient: buyer.publicKey,
       },
     };
-    console.log(tokenPrize.toBase58());
-    console.log(tokenCost.toBase58());
-    console.log(escrowToken.toBase58());
-    console.log(escrowTokenCost.toBase58());
 
     tx.add(program.instruction.initTokenAccounts(ctx_accounts));
   }
