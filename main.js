@@ -13,7 +13,7 @@ let connection;
 connection = new anchor.web3.Connection(process.env.rpc);
 anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
 
-async function testCreateRaffle(bad_params) {
+async function testCreateRaffle() {
   const mint = new anchor.web3.PublicKey(
       'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
     ),
@@ -84,6 +84,8 @@ async function testCreateRaffle(bad_params) {
     price: new anchor.BN(1),
     start: new anchor.BN(150),
     end: new anchor.BN(93999999990),
+    costDecimals: 1,
+    prizeDecimals: 9,
     maxEntries: new anchor.BN(99999),
     perWin: new anchor.BN(1),
     winMultiple: true,
@@ -93,10 +95,6 @@ async function testCreateRaffle(bad_params) {
     nftUri: 'AAAAAAAAAAAAAAAAAAA',
     nftImage: 'AAAAAAAAAAAAAAAAAAA',
   };
-
-  if (bad_params) {
-    args.quantity = new anchor.BN(0);
-  }
 
   const fixedRaffle = await anchor.web3.Keypair.fromSeed(
     new Uint8Array(raffle.toBytes()),
@@ -268,18 +266,20 @@ const buyer_program = new anchor.Program(raffler_idl, programId);
 
 (async () => {
   try {
-    //  await testCreateBadParams();
-    await testCreateAndClose();
+    //  await testCreateAndClose();
     //await testCreateAndForceClose();
-    // await testCreate();
-    // console.log(await testBuyRaffle());
-    // for (let i = 0; i < 50; i++) {
-    //   console.log(await testBuyRaffle());
-    // }
-    // for (let i = 0; i < 10; i++) {
-    //   console.log(await testPickWinner());
-    // }
-    console.log(await testSendWinner());
+    await testCreate();
+    //    console.log(await testBuyRaffle());
+    //for (let i = 0; i < 50; i++) {
+    //  console.log(await testBuyRaffle());
+    //}
+    //    for (let i = 0; i < 10; i++) {
+    //      console.log(await testPickWinner());
+    //    }
+    //for (let i = 0; i < 10; i++) {
+    //  console.log(await testSendWinner());
+    //}
+    console.log(await testCreateAndClose());
   } catch (e) {
     console.log(e);
     //
@@ -289,19 +289,6 @@ const buyer_program = new anchor.Program(raffler_idl, programId);
 async function testCreate() {
   try {
     let [tx, signers] = await testCreateRaffle();
-    let a = await payer.sendAndConfirm(tx, [...signers, payer.wallet.payer], {
-      skipPreflight: true,
-      commitment: 'confirmed',
-    });
-    console.log(a);
-  } catch (e) {
-    console.log(e);
-  }
-}
-
-async function testCreateBadParams() {
-  try {
-    let [tx, signers] = await testCreateRaffle(true);
     let a = await payer.sendAndConfirm(tx, [...signers, payer.wallet.payer], {
       skipPreflight: true,
       commitment: 'confirmed',
