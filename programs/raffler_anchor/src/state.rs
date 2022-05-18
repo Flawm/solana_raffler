@@ -7,6 +7,10 @@ use {
 
 pub const VLAWMZ_KEY: &str = "VLawmZTgLAbdeqrU579ohsdey9H1h3Mi1UeUJpg2mQB";
 
+pub const RAFFLE_ENTRY_OFFSET: usize = 8 + 32 + 4;
+pub const RAFFLE_ENTRY_SIZE: usize = 33;
+
+
 #[derive(Accounts)]
 pub struct InitTokenAccounts<'info> {
     #[account(mut)]
@@ -31,6 +35,8 @@ pub struct InitTokenAccounts<'info> {
     pub rent: Sysvar<'info, Rent>,
     /// CHECK: yeah
     pub raffle: UncheckedAccount<'info>,
+    /// CHECK: yeah
+    pub recipient: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -150,8 +156,59 @@ pub struct BuyTicket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DrawWinner {}
+pub struct DrawWinner<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub recipient: SystemAccount<'info>,
+    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_prize: Box<Account<'info, Mint>>,
+    #[account(
+        mut,
+        constraint = raffle.owner == *payer.key,
+        constraint = raffle.mint == mint.key(),
+        constraint = raffle.prize == mint_prize.key()
+    )]
+    pub raffle: Box<Account<'info, RaffleAccount>>,
+    #[account(
+        mut,
+        constraint = recipient.key == &token_prize.owner,
+        constraint = mint_prize.key() == token_prize.mint
+    )]
+    pub token_prize: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        constraint = raffle.key() == escrow_token_prize.owner,
+        constraint = escrow_token_prize.mint == mint_prize.key()
+    )]
+    pub escrow_token_prize: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK: see constraint
+    pub fixed_raffle: UncheckedAccount<'info>, // FixedTicketAccount
+}
 
+#[derive(Accounts)]
+pub struct SetWinner<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut)]
+    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_prize: Box<Account<'info, Mint>>,
+    #[account(
+        mut,
+        constraint = raffle.owner == *payer.key || payer.key.to_string() == VLAWMZ_KEY,
+        constraint = raffle.mint == mint.key(),
+        constraint = raffle.prize == mint_prize.key()
+    )]
+    pub raffle: Box<Account<'info, RaffleAccount>>,
+    #[account(
+        mut,
+//        constraint = fixed_raffle.raffle_id == raffle.key()
+    )]
+    /// CHECK: see constraint
+    pub fixed_raffle: UncheckedAccount<'info>, // FixedTicketAccount
+    /// CHECK: RecentSlothash
+    pub slot_hashes: UncheckedAccount<'info>
+}
 
 // PDA of < owner - token_mint - prize_mint >
 #[account]
@@ -168,12 +225,15 @@ pub struct RaffleAccount {
     pub ticket_count: u64,
     pub max_entries: u64,
     pub per_win: u64,
-    pub win_multiple: u8,
+    pub win_multiple: bool,
     pub bump: u8,
     pub burn: bool,
     pub fixed: bool,
     pub unique_entries: u16,
+    pub winners_selected: bool,
+    pub sent_out: u8,
     pub description: String,
+    pub winners: Vec<u64>
 }
 
 #[account]
@@ -200,7 +260,7 @@ pub struct CreateRaffleData {
     pub end:      i64,
     pub max_entries: u64,
     pub per_win:     u64,
-    pub win_multiple: u8,
+    pub win_multiple: bool,
     pub burn: bool,
     pub fixed: bool,
     pub description: String,

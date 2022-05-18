@@ -21,4 +21,19 @@ pub enum CustomError {
 
     #[msg("You can't buy more than 1000 at a time")]
     TooMany,
+
+    #[msg("The raffle is still going!")]
+    RaffleGoing,
+
+    #[msg("No winners")]
+    NoWinners,
+
+    #[msg("Winners already picked")]
+    WinnersAlreadyPicked,
+
+    #[msg("All Winners Paid")]
+    AllWinnersPaid,
+
+    #[msg("You need to finish paying out the winners!")]
+    CantScam
 }

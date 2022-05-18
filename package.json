@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "@project-serum/anchor": "^0.24.2",
+    "dotenv": "^16.0.1",
     "mz": "^2.7.0"
   },
   "devDependencies": {

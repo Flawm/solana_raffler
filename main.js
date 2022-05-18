@@ -5,12 +5,10 @@
 const anchor = require('@project-serum/anchor');
 require('dotenv').config();
 
+let connection;
 // Configure the local cluster.
-if (false) {
-  anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
-} else {
-  anchor.setProvider(anchor.AnchorProvider.local());
-}
+connection = new anchor.web3.Connection(process.env.rpc);
+anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
 
 async function testCreateRaffle(bad_params) {
   const mint = new anchor.web3.PublicKey(
@@ -71,6 +69,7 @@ async function testCreateRaffle(bad_params) {
         systemProgram,
         raffle,
         rent,
+        recipient: payer.wallet.publicKey,
       },
     };
 
@@ -81,10 +80,10 @@ async function testCreateRaffle(bad_params) {
     prizeQuantity: new anchor.BN(5),
     price: new anchor.BN(1),
     start: new anchor.BN(150),
-    end: new anchor.BN(300),
+    end: new anchor.BN(93999999990),
     maxEntries: new anchor.BN(99999),
     perWin: new anchor.BN(1),
-    winMultiple: 0,
+    winMultiple: true,
     burn: false,
     fixed: true,
     description: 'AAAAAAAAAAAAAAAAAAA',
@@ -181,7 +180,6 @@ async function testCloseRaffle(force_close) {
     },
   };
 
-  console.log(force_close);
   let a = await program.rpc.closeRaffle(force_close, ctx);
   return a;
 }
@@ -190,9 +188,10 @@ async function testBuyRaffle() {
   const mint = new anchor.web3.PublicKey(
       'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
     ),
-    tokenCost = new anchor.web3.PublicKey(
-      '9aazTwWBFME3o4pNrXNCAjVgMAQXGP3uZcZGRsENvi4M',
-    ),
+    tokenCost = await anchor.utils.token.associatedAddress({
+      mint: mint,
+      owner: buyer.publicKey,
+    }),
     mintPrize = new anchor.web3.PublicKey(
       'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
     ),
@@ -214,7 +213,7 @@ async function testBuyRaffle() {
 
   const ctx = {
     accounts: {
-      payer: payer.wallet.publicKey,
+      payer: buyer.publicKey,
       mint,
       tokenCost,
       mintPrize,
@@ -226,7 +225,9 @@ async function testBuyRaffle() {
     },
   };
 
-  return await program.rpc.buyTicket(new anchor.BN(1000), ctx);
+  let sig = await buyer_program.rpc.buyTicket(new anchor.BN(1), ctx);
+  anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
+  return sig;
 }
 
 const raffler_idl = JSON.parse(
@@ -236,28 +237,46 @@ const raffler_idl = JSON.parse(
     '3XsaSBCDT4JhRuxpWjHRTYkzKLqWRgCuN1wyggvFuSsM',
   ),
   program = new anchor.Program(raffler_idl, programId),
-  payer = program.provider;
+  payer = program.provider,
+  buyer = new anchor.Wallet(
+    anchor.web3.Keypair.fromSecretKey(
+      new Uint8Array([
+        104, 71, 113, 233, 97, 67, 75, 109, 101, 145, 53, 155, 133, 64, 98, 233,
+        1, 162, 226, 147, 78, 178, 35, 134, 253, 189, 127, 244, 200, 24, 150,
+        135, 6, 226, 162, 242, 159, 83, 97, 123, 251, 176, 52, 102, 191, 184,
+        183, 153, 186, 64, 236, 4, 79, 187, 154, 37, 7, 51, 240, 157, 234, 211,
+        252, 137,
+      ]),
+    ),
+  ),
+  buyer_provider = new anchor.AnchorProvider(
+    connection,
+    buyer,
+    anchor.AnchorProvider.defaultOptions(),
+  );
+
+anchor.setProvider(buyer_provider);
+const buyer_program = new anchor.Program(raffler_idl, programId);
 
 (async () => {
-  //  await testCreateBadParams();
-  //  await testCreateAndClose();
-  await testCreateAndForceClose();
-  await testCreate();
-  await testBuy();
-  for (let i = 0; i < 500; i++) {
-    await testBuy();
-  }
-})();
-
-async function testBuy() {
   try {
-    let a = await testBuyRaffle();
-    console.log(a);
+    //  await testCreateBadParams();
+    await testCreateAndClose();
+    //await testCreateAndForceClose();
+    // await testCreate();
+    // console.log(await testBuyRaffle());
+    // for (let i = 0; i < 50; i++) {
+    //   console.log(await testBuyRaffle());
+    // }
+    // for (let i = 0; i < 10; i++) {
+    //   console.log(await testPickWinner());
+    // }
+    console.log(await testSendWinner());
   } catch (e) {
     console.log(e);
-    throw e;
+    //
   }
-}
+})();
 
 async function testCreate() {
   try {
@@ -307,4 +326,138 @@ async function testCreateAndClose(force_close) {
 
 async function testCreateAndForceClose() {
   await testCreateAndClose(true);
+}
+
+async function testPickWinner() {
+  const mint = new anchor.web3.PublicKey(
+      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
+    ),
+    mintPrize = new anchor.web3.PublicKey(
+      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
+    ),
+    [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
+      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
+      programId,
+    ),
+    slotHashes = new anchor.web3.PublicKey(
+      'SysvarS1otHashes111111111111111111111111111',
+    );
+
+  const fixedRaffle = await anchor.web3.Keypair.fromSeed(
+    new Uint8Array(raffle.toBytes()),
+  );
+
+  const ctx = {
+    accounts: {
+      payer: payer.wallet.publicKey,
+      mint,
+      mintPrize,
+      raffle,
+      fixedRaffle: fixedRaffle.publicKey,
+      slotHashes,
+    },
+  };
+
+  let a = await program.rpc.setWinner(ctx);
+  return a;
+}
+
+async function testSendWinner() {
+  const mint = new anchor.web3.PublicKey(
+      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
+    ),
+    mintPrize = new anchor.web3.PublicKey(
+      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
+    ),
+    [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
+      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
+      programId,
+    );
+
+  const systemProgram = new anchor.web3.PublicKey(
+      '11111111111111111111111111111111',
+    ),
+    rent = new anchor.web3.PublicKey(
+      'SysvarRent111111111111111111111111111111111',
+    ),
+    escrowToken = await anchor.utils.token.associatedAddress({
+      mint: mintPrize,
+      owner: raffle,
+    }),
+    escrowTokenCost = await anchor.utils.token.associatedAddress({
+      mint: mint,
+      owner: raffle,
+    }),
+    tokenPrize = await anchor.utils.token.associatedAddress({
+      mint: mintPrize,
+      owner: buyer.publicKey,
+    }),
+    tokenCost = await anchor.utils.token.associatedAddress({
+      mint: mint,
+      owner: buyer.publicKey,
+    });
+
+  const spl_token_program = anchor.Spl.token();
+
+  let tx = new anchor.web3.Transaction();
+
+  if (
+    (await payer.connection.getAccountInfo(escrowToken)) === null ||
+    (await payer.connection.getAccountInfo(escrowTokenCost)) === null ||
+    (await payer.connection.getAccountInfo(tokenPrize)) === null ||
+    (await payer.connection.getAccountInfo(tokenCost)) === null
+  ) {
+    let ctx_accounts = {
+      accounts: {
+        payer: payer.wallet.publicKey,
+        mintCost: mint,
+        mintPrize,
+        tokenPrize,
+        tokenCost,
+        escrowTokenPrize: escrowToken,
+        escrowTokenCost: escrowTokenCost,
+        associatedToken: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+        systemProgram,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        rent,
+        raffle,
+        recipient: buyer.publicKey,
+      },
+    };
+    console.log(tokenPrize.toBase58());
+    console.log(tokenCost.toBase58());
+    console.log(escrowToken.toBase58());
+    console.log(escrowTokenCost.toBase58());
+
+    tx.add(program.instruction.initTokenAccounts(ctx_accounts));
+  }
+
+  const fixedRaffle = await anchor.web3.Keypair.fromSeed(
+    new Uint8Array(raffle.toBytes()),
+  );
+
+  const ctx = {
+    accounts: {
+      payer: payer.wallet.publicKey,
+      recipient: buyer.publicKey,
+      mint,
+      tokenPrize,
+      mintPrize,
+      raffle,
+      systemProgram,
+      tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      escrowTokenPrize: escrowToken,
+      fixedRaffle: fixedRaffle.publicKey,
+    },
+  };
+
+  tx.add(await program.instruction.drawWinner(ctx));
+
+  tx.setSigners(payer.wallet.publicKey);
+
+  let a = await payer.sendAndConfirm(tx, [payer.wallet.payer], {
+    skipPreflight: true,
+    commitment: 'confirmed',
+  });
+  return a;
 }

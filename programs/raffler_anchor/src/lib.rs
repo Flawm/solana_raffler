@@ -18,10 +18,22 @@ pub mod raffler_anchor {
             return err!(CustomError::InputError);
         }
 
+        // this needs to be divisible
+        if data.prize_quantity % data.per_win != 0 {
+            return err!(CustomError::InputError);
+        }
+
         // later
         if data.fixed == false {
             return err!(CustomError::InputError);
         }
+
+//        let clock = Clock::get()?;
+
+//        // ...? & raffles must be open for atleast one hour
+//        if data.end < clock.unix_timestamp || data.start + 60 * 60 < data.end {
+//            return err!(CustomError::InputError);
+//        }
 
         let raffle = &mut ctx.accounts.raffle;
         raffle.id = raffle.key();
@@ -57,7 +69,7 @@ pub mod raffler_anchor {
     }
 
     pub fn close_raffle(ctx: Context<CloseRaffle>, force_close: bool) -> Result<()> {
-        let is_admin = ctx.accounts.payer.key.to_string() == VLAWMZ_KEY;
+        let is_admin = ctx.accounts.payer.key.to_string() == VLAWMZ_KEY && force_close;
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
@@ -71,10 +83,14 @@ pub mod raffler_anchor {
 
         let raffle = &ctx.accounts.raffle;
 
-        if raffle.tickets_purchased > 0 && !is_admin {
+        if raffle.sent_out == 0 && raffle.tickets_purchased > 0 && !is_admin {
             return err!(CustomError::RaffleStarted);
         }
 
+        // they need to pay out all winners
+        if raffle.winners.len() != 0 && !is_admin {
+            return err!(CustomError::CantScam);
+        }
 
         let seeds: &[&[_]] = &[&[
             ctx.accounts.raffle.owner.as_ref(),
@@ -92,7 +108,8 @@ pub mod raffler_anchor {
                 },
                 seeds
             ),
-            raffle.prize_quantity * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+            // draw back the prize tokens if there are any left over
+            (raffle.prize_quantity - (raffle.per_win * raffle.sent_out as u64)) * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
         )?;
 
         if raffle.burn && !is_admin {
@@ -166,13 +183,11 @@ pub mod raffler_anchor {
 
         let payer_bytes = &ctx.accounts.payer.key().to_bytes()[..];
 
-        // starts at 44
-        let mut offset: usize = 8 + 32 + 4 + 33 * raffle.tickets_purchased as usize;
+        let mut offset: usize = RAFFLE_ENTRY_OFFSET + RAFFLE_ENTRY_SIZE * raffle.tickets_purchased as usize;
 
         for _x in 0..amount {
-            ticket_data[offset..offset + 32].copy_from_slice(payer_bytes);
-            // skips by 33
-            offset = offset + 33;
+            ticket_data[offset .. offset + 32].copy_from_slice(payer_bytes);
+            offset = offset + RAFFLE_ENTRY_SIZE;
         };
 
         raffle.tickets_purchased = raffle.tickets_purchased + amount;
@@ -180,7 +195,7 @@ pub mod raffler_anchor {
         let mut unique = BTreeSet::new();
         let mut unique_entries = 0;
 
-        for offset in (44..raffle.tickets_purchased as usize).step_by(33) {
+        for offset in (RAFFLE_ENTRY_OFFSET..raffle.tickets_purchased as usize).step_by(RAFFLE_ENTRY_SIZE) {
             let payer_slice = &ticket_data[offset..offset + 8];
 
             if !unique.contains(&payer_slice) {
@@ -204,13 +219,108 @@ pub mod raffler_anchor {
             raffle.price * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32) * amount,
         )?;
 
-        // 40 - 44 is the length of our vec
-        ticket_data[40..44].copy_from_slice(&raffle.tickets_purchased.to_le_bytes()[..4]);
+        ticket_data[RAFFLE_ENTRY_OFFSET - 4 .. RAFFLE_ENTRY_OFFSET].copy_from_slice(&raffle.tickets_purchased.to_le_bytes()[..4]);
 
         Ok(())
     }
 
     pub fn draw_winner(ctx: Context<DrawWinner>) -> Result<()> {
+        let raffle = &mut ctx.accounts.raffle;
+        let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
+        let ticket_data = &mut ticket_account.data.borrow_mut();
+
+        if &ticket_data[8..40] != raffle.id.as_ref() {
+            return err!(CustomError::NoWinners);
+        }
+
+        // all winners need to be set first
+        if raffle.winners_selected == false {
+            return err!(CustomError::InputError);
+        }
+
+        if raffle.winners.len() == 0 {
+            return err!(CustomError::AllWinnersPaid);
+        }
+
+        let winner = raffle.winners.pop().unwrap() as usize;
+
+        let offset = RAFFLE_ENTRY_OFFSET + RAFFLE_ENTRY_SIZE * winner;
+
+        if ctx.accounts.recipient.key.as_ref() != &ticket_data[offset .. offset + 32] {
+            return err!(CustomError::InputError);
+        }
+
+        let seeds: &[&[_]] = &[&[
+            raffle.owner.as_ref(),
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            ctx.accounts.mint_prize.to_account_info().key.as_ref(),
+            &[raffle.bump]
+        ]];
+
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Transfer {
+                    from: ctx.accounts.escrow_token_prize.to_account_info(),
+                    to: ctx.accounts.token_prize.to_account_info(),
+                    authority: raffle.to_account_info()
+                },
+                seeds
+            ),
+            raffle.per_win * 10_u64.pow(ctx.accounts.mint_prize.decimals as u32),
+        )?;
+
+        // incremenet this so we can close a raffle just in case
+        raffle.sent_out = raffle.sent_out + 1;
+
+        Ok(())
+    }
+
+    pub fn set_winner(ctx: Context<SetWinner>) -> Result<()> {
+        let raffle = &mut ctx.accounts.raffle;
+        let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
+        let ticket_data = &mut ticket_account.data.borrow_mut();
+
+        if &ticket_data[8..40] != raffle.id.as_ref() {
+msg!("d");
+            return err!(CustomError::InputError);
+        }
+
+//        let clock = Clock::get()?;
+
+//        if clock.unix_timestamp < raffle.end {
+//            return err!(CustomError::RaffleGoing);
+//        }
+
+        let slot_hashes = &ctx.accounts.slot_hashes;
+
+        if slot_hashes.key().to_string() != "SysvarS1otHashes111111111111111111111111111" {
+            return err!(CustomError::InputError);
+        }
+
+        let random = u64::from_le_bytes(slot_hashes.to_account_info().data.borrow()[16..24].try_into().unwrap());
+        let winner: usize = random.checked_rem(raffle.tickets_purchased).unwrap() as usize;
+
+        // we have reached a max # of winners and can not set anymore
+        if raffle.winners_selected {
+            return err!(CustomError::WinnersAlreadyPicked);
+        }
+
+        let offset = RAFFLE_ENTRY_OFFSET + RAFFLE_ENTRY_SIZE * winner;
+
+        // this entry has 'won' already and can't win multiple times
+        if ticket_data[offset + 32] >= 1 && !raffle.win_multiple {
+            return err!(CustomError::InputError);
+        }
+
+        // we can count wins I guess up to 255? not an issue (?)
+        ticket_data[offset + 32] = ticket_data[offset + 32] + 1;
+
+        raffle.winners.push(winner as u64);
+
+        // all winners have been picked, we can now pay them out
+        if raffle.winners.len() == (raffle.prize_quantity / raffle.per_win) as usize {
+            raffle.winners_selected = true;
+        }
+
         Ok(())
     }
 
@@ -234,7 +344,7 @@ pub mod raffler_anchor {
                 CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::associated_token::Create {
                     payer: ctx.accounts.payer.to_account_info(),
                     associated_token: ctx.accounts.token_prize.to_account_info(),
-                    authority: ctx.accounts.raffle.to_account_info(),
+                    authority: ctx.accounts.recipient.to_account_info(),
                     mint: ctx.accounts.mint_prize.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
                     token_program: ctx.accounts.token_program.to_account_info(),
@@ -262,7 +372,7 @@ pub mod raffler_anchor {
                 CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::associated_token::Create {
                     payer: ctx.accounts.payer.to_account_info(),
                     associated_token: ctx.accounts.token_cost.to_account_info(),
-                    authority: ctx.accounts.raffle.to_account_info(),
+                    authority: ctx.accounts.recipient.to_account_info(),
                     mint: ctx.accounts.mint_cost.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
                     token_program: ctx.accounts.token_program.to_account_info(),
