@@ -157,30 +157,39 @@ pub mod raffler_anchor {
 
         let raffle = ctx.accounts.raffle.to_account_info();
         let fixed_raffle = ctx.accounts.fixed_raffle.to_account_info();
+        let escrow_token_cost = ctx.accounts.escrow_token_cost.to_account_info();
+        let escrow_token_prize = ctx.accounts.escrow_token_prize.to_account_info();
 
         let payer = ctx.accounts.payer.to_account_info();
         let vlawmz = ctx.accounts.vlawmz.to_account_info();
 
         let mut escrow_lams = raffle.lamports.borrow_mut();
+        let mut escrow_token_prize_lams = escrow_token_prize.lamports.borrow_mut();
+        let mut escrow_token_cost_lams = escrow_token_cost.lamports.borrow_mut();
         let mut fixed_raffle_lams = fixed_raffle.lamports.borrow_mut();
 
         if payer.key == vlawmz.key {
             let mut payer_lams  = payer.lamports.borrow_mut();
             **payer_lams += **escrow_lams;
-            **escrow_lams = 0;
             **payer_lams += **fixed_raffle_lams;
-            **fixed_raffle_lams = 0;
+            **payer_lams += **escrow_token_cost_lams;
+            **payer_lams += **escrow_token_prize_lams;
         } else {
             let mut vlawmz_lams = vlawmz.lamports.borrow_mut();
             let mut payer_lams  = payer.lamports.borrow_mut();
 
             **vlawmz_lams += **escrow_lams;
+            **vlawmz_lams += **escrow_token_cost_lams;
             **vlawmz_lams += **fixed_raffle_lams / 10;
-            **escrow_lams = 0;
 
             **payer_lams += **fixed_raffle_lams - **fixed_raffle_lams / 10;
-            **fixed_raffle_lams = 0;
+            **payer_lams += **escrow_token_prize_lams;
         }
+
+        **escrow_lams = 0;
+        **fixed_raffle_lams = 0;
+        **escrow_token_cost_lams = 0;
+        **escrow_token_prize_lams = 0;
 
         Ok(())
     }
