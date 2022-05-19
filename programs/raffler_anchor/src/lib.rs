@@ -190,7 +190,7 @@ pub mod raffler_anchor {
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
-        if &ticket_data[8..40] != raffle.id.as_ref() || raffle.owner == *ctx.accounts.payer.key {
+        if ctx.accounts.fixed_raffle.owner != &ID || &ticket_data[8..40] != raffle.id.as_ref() || raffle.owner == *ctx.accounts.payer.key {
             return err!(CustomError::InputError);
         }
 
