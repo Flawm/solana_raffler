@@ -44,7 +44,7 @@ pub mod raffler_anchor {
         let raffle = &mut ctx.accounts.raffle;
         raffle.id = raffle.key();
         raffle.owner = *ctx.accounts.payer.key;
-        raffle.mint = ctx.accounts.mint.key();
+        raffle.mint = ctx.accounts.mint_cost.key();
         raffle.prize = ctx.accounts.mint_prize.key();
         raffle.prize_quantity = data.prize_quantity;
         raffle.tickets_purchased = 0;
@@ -107,13 +107,13 @@ pub mod raffler_anchor {
 
         let seeds: &[&[_]] = &[&[
             ctx.accounts.raffle.owner.as_ref(),
-            ctx.accounts.mint.to_account_info().key.as_ref(),
+            ctx.accounts.mint_cost.to_account_info().key.as_ref(),
             ctx.accounts.mint_prize.to_account_info().key.as_ref(),
             &[raffle.bump]
         ]];
 
         let prize_decimals = (ctx.accounts.mint_prize.decimals - raffle.prize_decimals) as u32;
-        let cost_decimals = (ctx.accounts.mint.decimals - raffle.cost_decimals) as u32;
+        let cost_decimals = (ctx.accounts.mint_cost.decimals - raffle.cost_decimals) as u32;
 
         // take prize tokens back from escrow
         anchor_spl::token::transfer(
@@ -132,7 +132,7 @@ pub mod raffler_anchor {
             // burn
             anchor_spl::token::burn(
                 CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Burn {
-                        mint: ctx.accounts.mint.to_account_info(),
+                        mint: ctx.accounts.mint_cost.to_account_info(),
                         from:  ctx.accounts.escrow_token_cost.to_account_info(),
                         authority:  ctx.accounts.raffle.to_account_info()
                     },
@@ -240,7 +240,7 @@ pub mod raffler_anchor {
 
         raffle.unique_entries = unique_entries;
 
-        let cost_decimals = (ctx.accounts.mint.decimals - raffle.cost_decimals) as u32;
+        let cost_decimals = (ctx.accounts.mint_cost.decimals - raffle.cost_decimals) as u32;
 
         anchor_spl::token::transfer(
             CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Transfer {
@@ -285,7 +285,7 @@ pub mod raffler_anchor {
 
         let seeds: &[&[_]] = &[&[
             raffle.owner.as_ref(),
-            ctx.accounts.mint.to_account_info().key.as_ref(),
+            ctx.accounts.mint_cost.to_account_info().key.as_ref(),
             ctx.accounts.mint_prize.to_account_info().key.as_ref(),
             &[raffle.bump]
         ]];

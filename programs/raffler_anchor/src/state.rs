@@ -15,7 +15,7 @@ pub const RAFFLE_ENTRY_SIZE: usize = 33;
 pub struct InitTokenAccounts<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    pub mint_cost: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     pub mint_prize: Account<'info, Mint>,
     #[account(mut)]
     /// CHECK: yeah
@@ -43,7 +43,7 @@ pub struct InitTokenAccounts<'info> {
 pub struct CreateRaffle<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     #[account(
         mut,
         constraint = payer.key == &token_prize.owner,
@@ -55,7 +55,7 @@ pub struct CreateRaffle<'info> {
         init,
         payer = payer,
         space = 1000,
-        seeds = [payer.key().as_ref(), mint.key().as_ref(), mint_prize.key().as_ref()], bump,
+        seeds = [payer.key().as_ref(), mint_cost.key().as_ref(), mint_prize.key().as_ref()], bump,
     )]
     pub raffle: Box<Account<'info, RaffleAccount>>,
     #[account(
@@ -77,7 +77,7 @@ pub struct CloseRaffle<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut)]
-    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     #[account(
         mut,
         constraint = payer.key == &token_prize.owner || payer.key.to_string() == VLAWMZ_KEY,
@@ -87,14 +87,14 @@ pub struct CloseRaffle<'info> {
     #[account(
         mut,
         constraint = payer.key == &token_cost.owner || payer.key.to_string() == VLAWMZ_KEY,
-        constraint = mint.key() == token_cost.mint
+        constraint = mint_cost.key() == token_cost.mint
     )]
     pub token_cost: Box<Account<'info, TokenAccount>>,
     pub mint_prize: Box<Account<'info, Mint>>,
     #[account(
         mut,
         constraint = raffle.owner == *payer.key || payer.key.to_string() == VLAWMZ_KEY,
-        constraint = raffle.mint == mint.key(),
+        constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]
     pub raffle: Box<Account<'info, RaffleAccount>>,
@@ -115,7 +115,7 @@ pub struct CloseRaffle<'info> {
     #[account(
         mut,
         constraint = raffle.key() == escrow_token_cost.owner,
-        constraint = escrow_token_cost.mint == mint.key()
+        constraint = escrow_token_cost.mint == mint_cost.key()
     )]
     pub escrow_token_cost: Box<Account<'info, TokenAccount>>,
     #[account(
@@ -129,17 +129,17 @@ pub struct CloseRaffle<'info> {
 pub struct BuyTicket<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     #[account(
         mut,
         constraint = payer.key == &token_cost.owner,
-        constraint = mint.key() == token_cost.mint
+        constraint = mint_cost.key() == token_cost.mint
     )]
     pub token_cost: Account<'info, TokenAccount>,
     pub mint_prize: Account<'info, Mint>,
     #[account(
         mut,
-        constraint = raffle.mint == mint.key(),
+        constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]
     pub raffle: Box<Account<'info, RaffleAccount>>,
@@ -154,7 +154,7 @@ pub struct BuyTicket<'info> {
     #[account(
         mut,
         constraint = raffle.key() == escrow_token_cost.owner,
-        constraint = escrow_token_cost.mint == mint.key()
+        constraint = escrow_token_cost.mint == mint_cost.key()
     )]
     pub escrow_token_cost: Account<'info, TokenAccount>
 
@@ -165,12 +165,12 @@ pub struct DrawWinner<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     pub recipient: SystemAccount<'info>,
-    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     pub mint_prize: Box<Account<'info, Mint>>,
     #[account(
         mut,
         constraint = raffle.owner == *payer.key,
-        constraint = raffle.mint == mint.key(),
+        constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]
     pub raffle: Box<Account<'info, RaffleAccount>>,
@@ -196,12 +196,12 @@ pub struct SetWinner<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut)]
-    pub mint: Account<'info, Mint>, // cost of raffle
+    pub mint_cost: Account<'info, Mint>,
     pub mint_prize: Box<Account<'info, Mint>>,
     #[account(
         mut,
         constraint = raffle.owner == *payer.key || payer.key.to_string() == VLAWMZ_KEY,
-        constraint = raffle.mint == mint.key(),
+        constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]
     pub raffle: Box<Account<'info, RaffleAccount>>,

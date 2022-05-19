@@ -1,42 +1,31 @@
-// client.js is used to introduce the reader to generating clients from IDLs.
-// It is not expected users directly test with this example. For a more
-// ergonomic example, see `tests/basic-0.js` in this workspace.
-
-const anchor = require('@project-serum/anchor');
-const fs = require('fs');
+const anchor = require('@project-serum/anchor'),
+  fs = require('fs');
 require('dotenv').config();
 
 process.env.ANCHOR_WALLET = process.env.wallet;
 
-let connection;
-// Configure the local cluster.
-connection = new anchor.web3.Connection(process.env.rpc);
+const connection = new anchor.web3.Connection(process.env.rpc),
+  mintCost = new anchor.web3.PublicKey(process.env.mint_cost),
+  mintPrize = new anchor.web3.PublicKey(process.env.mint_prize),
+  systemProgram = new anchor.web3.PublicKey('11111111111111111111111111111111'),
+  rent = new anchor.web3.PublicKey(
+    'SysvarRent111111111111111111111111111111111',
+  );
+
 anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
 
 async function testCreateRaffle() {
-  const mint = new anchor.web3.PublicKey(
-      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
-    ),
-    mintPrize = new anchor.web3.PublicKey(
-      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
-    ),
-    [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
-      programId,
-    );
+  const [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
+    [payer.wallet.publicKey.toBytes(), mintCost.toBytes(), mintPrize.toBytes()],
+    programId,
+  );
 
-  const systemProgram = new anchor.web3.PublicKey(
-      '11111111111111111111111111111111',
-    ),
-    rent = new anchor.web3.PublicKey(
-      'SysvarRent111111111111111111111111111111111',
-    ),
-    escrowToken = await anchor.utils.token.associatedAddress({
+  const escrowToken = await anchor.utils.token.associatedAddress({
       mint: mintPrize,
       owner: raffle,
     }),
     escrowTokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: raffle,
     }),
     tokenPrize = await anchor.utils.token.associatedAddress({
@@ -44,7 +33,7 @@ async function testCreateRaffle() {
       owner: payer.wallet.publicKey,
     }),
     tokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: payer.wallet.publicKey,
     });
 
@@ -103,7 +92,7 @@ async function testCreateRaffle() {
   const ctx = {
     accounts: {
       payer: payer.wallet.publicKey,
-      mint,
+      mintCost,
       tokenPrize,
       mintPrize,
       raffle,
@@ -133,44 +122,39 @@ async function testCreateRaffle() {
 }
 
 async function testCloseRaffle(force_close) {
-  const mint = new anchor.web3.PublicKey(
-      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
-    ),
-    mintPrize = new anchor.web3.PublicKey(
-      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
-    ),
-    tokenPrize = await anchor.utils.token.associatedAddress({
+  const tokenPrize = await anchor.utils.token.associatedAddress({
       mint: mintPrize,
       owner: payer.wallet.publicKey,
     }),
     tokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: payer.wallet.publicKey,
     }),
     [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
+      [
+        payer.wallet.publicKey.toBytes(),
+        mintCost.toBytes(),
+        mintPrize.toBytes(),
+      ],
       programId,
     ),
     fixedRaffle = await anchor.web3.Keypair.fromSeed(
       new Uint8Array(raffle.toBytes()),
     );
 
-  const systemProgram = new anchor.web3.PublicKey(
-    '11111111111111111111111111111111',
-  );
   const escrowTokenPrize = await anchor.utils.token.associatedAddress({
       mint: mintPrize,
       owner: raffle,
     }),
     escrowTokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: raffle,
     });
 
   const ctx = {
     accounts: {
       payer: payer.wallet.publicKey,
-      mint,
+      mintCost,
       tokenPrize,
       tokenCost,
       mintPrize,
@@ -186,41 +170,34 @@ async function testCloseRaffle(force_close) {
     },
   };
 
-  let a = await program.rpc.closeRaffle(force_close, ctx);
-  return a;
+  return await program.rpc.closeRaffle(force_close, ctx);
 }
 
 async function testBuyRaffle() {
-  const mint = new anchor.web3.PublicKey(
-      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
-    ),
-    tokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+  const tokenCost = await anchor.utils.token.associatedAddress({
+      mint: mintCost,
       owner: buyer.publicKey,
     }),
-    mintPrize = new anchor.web3.PublicKey(
-      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
-    ),
     [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
+      [
+        payer.wallet.publicKey.toBytes(),
+        mintCost.toBytes(),
+        mintPrize.toBytes(),
+      ],
       programId,
     ),
     fixedRaffle = await anchor.web3.Keypair.fromSeed(
       new Uint8Array(raffle.toBytes()),
-    );
-
-  const systemProgram = new anchor.web3.PublicKey(
-      '11111111111111111111111111111111',
     ),
     escrowTokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: raffle,
     });
 
   const ctx = {
     accounts: {
       payer: buyer.publicKey,
-      mint,
+      mintCost,
       tokenCost,
       mintPrize,
       raffle,
@@ -231,9 +208,7 @@ async function testBuyRaffle() {
     },
   };
 
-  let sig = await buyer_program.rpc.buyTicket(new anchor.BN(1), ctx);
-  anchor.setProvider(anchor.AnchorProvider.local(process.env.rpc));
-  return sig;
+  return await buyer_program.rpc.buyTicket(new anchor.BN(1), ctx);
 }
 
 const raffler_idl = JSON.parse(
@@ -266,8 +241,6 @@ const buyer_program = new anchor.Program(raffler_idl, programId);
 
 (async () => {
   try {
-    //    await testCreateAndClose();
-    //    //await testCreateAndForceClose();
     await testCreate();
     for (let i = 0; i < 3; i++) {
       try {
@@ -333,33 +306,26 @@ async function testCreateAndClose(force_close) {
   }
 }
 
-async function testCreateAndForceClose() {
-  await testCreateAndClose(true);
-}
-
 async function testPickWinner() {
-  const mint = new anchor.web3.PublicKey(
-      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
-    ),
-    mintPrize = new anchor.web3.PublicKey(
-      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
-    ),
-    [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
+  const [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
+      [
+        payer.wallet.publicKey.toBytes(),
+        mintCost.toBytes(),
+        mintPrize.toBytes(),
+      ],
       programId,
     ),
     slotHashes = new anchor.web3.PublicKey(
       'SysvarS1otHashes111111111111111111111111111',
+    ),
+    fixedRaffle = await anchor.web3.Keypair.fromSeed(
+      new Uint8Array(raffle.toBytes()),
     );
-
-  const fixedRaffle = await anchor.web3.Keypair.fromSeed(
-    new Uint8Array(raffle.toBytes()),
-  );
 
   const ctx = {
     accounts: {
       payer: payer.wallet.publicKey,
-      mint,
+      mintCost,
       mintPrize,
       raffle,
       fixedRaffle: fixedRaffle.publicKey,
@@ -372,29 +338,17 @@ async function testPickWinner() {
 }
 
 async function testSendWinner() {
-  const mint = new anchor.web3.PublicKey(
-      'meebAU3nZrU5PbUt3dVK6ExgbNWCUAkV7C3DaJKMZZ4',
-    ),
-    mintPrize = new anchor.web3.PublicKey(
-      'ankhim7kPXxLKVbW1Tn7vH4mLTuvCAqHjhkKuvwWJ7b',
-    ),
-    [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [payer.wallet.publicKey.toBytes(), mint.toBytes(), mintPrize.toBytes()],
-      programId,
-    );
+  const [raffle, bump] = await anchor.web3.PublicKey.findProgramAddress(
+    [payer.wallet.publicKey.toBytes(), mintCost.toBytes(), mintPrize.toBytes()],
+    programId,
+  );
 
-  const systemProgram = new anchor.web3.PublicKey(
-      '11111111111111111111111111111111',
-    ),
-    rent = new anchor.web3.PublicKey(
-      'SysvarRent111111111111111111111111111111111',
-    ),
-    escrowToken = await anchor.utils.token.associatedAddress({
+  const escrowToken = await anchor.utils.token.associatedAddress({
       mint: mintPrize,
       owner: raffle,
     }),
     escrowTokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: raffle,
     }),
     tokenPrize = await anchor.utils.token.associatedAddress({
@@ -402,7 +356,7 @@ async function testSendWinner() {
       owner: buyer.publicKey,
     }),
     tokenCost = await anchor.utils.token.associatedAddress({
-      mint: mint,
+      mint: mintCost,
       owner: buyer.publicKey,
     });
 
@@ -419,7 +373,7 @@ async function testSendWinner() {
     let ctx_accounts = {
       accounts: {
         payer: payer.wallet.publicKey,
-        mintCost: mint,
+        mintCost: mintCost,
         mintPrize,
         tokenPrize,
         tokenCost,
@@ -445,7 +399,7 @@ async function testSendWinner() {
     accounts: {
       payer: payer.wallet.publicKey,
       recipient: buyer.publicKey,
-      mint,
+      mintCost,
       tokenPrize,
       mintPrize,
       raffle,
