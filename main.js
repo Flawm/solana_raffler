@@ -83,7 +83,7 @@ async function testCreateRaffle() {
     prizeQuantity: new anchor.BN(5),
     price: new anchor.BN(1),
     start: new anchor.BN(150),
-    end: new anchor.BN(93999999990),
+    end: new anchor.BN(Date.now() / 1000 + 5),
     costDecimals: 1,
     prizeDecimals: 9,
     maxEntries: new anchor.BN(99999),
@@ -266,18 +266,32 @@ const buyer_program = new anchor.Program(raffler_idl, programId);
 
 (async () => {
   try {
-    await testCreateAndClose();
-    //await testCreateAndForceClose();
+    //    await testCreateAndClose();
+    //    //await testCreateAndForceClose();
     await testCreate();
-    //    console.log(await testBuyRaffle());
-    for (let i = 0; i < 50; i++) {
-      console.log(await testBuyRaffle());
+    for (let i = 0; i < 3; i++) {
+      try {
+        console.log(await testBuyRaffle());
+      } catch (e) {
+        console.log(e);
+        break;
+      }
     }
     for (let i = 0; i < 10; i++) {
-      console.log(await testPickWinner());
+      try {
+        console.log(await testPickWinner());
+      } catch (e) {
+        console.log(e);
+        break;
+      }
     }
     for (let i = 0; i < 10; i++) {
-      console.log(await testSendWinner());
+      try {
+        console.log(await testSendWinner());
+      } catch (e) {
+        console.log(e);
+        break;
+      }
     }
     console.log(await testCreateAndClose());
   } catch (e) {

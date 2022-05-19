@@ -14,7 +14,7 @@ pub mod raffler_anchor {
     use super::*;
 
     pub fn create_raffle(ctx: Context<CreateRaffle>, data: CreateRaffleData) -> Result<()> {
-        if data.start >= data.end || data.prize_quantity == 0 || data.price == 0 || ctx.accounts.token_prize.amount < data.prize_quantity {
+        if data.start >= data.end || data.prize_quantity == 0 || data.price == 0 || data.per_win == 0 || ctx.accounts.token_prize.amount < data.prize_quantity {
             return err!(CustomError::InputError);
         }
 
@@ -30,10 +30,16 @@ pub mod raffler_anchor {
 
         let clock = Clock::get()?;
 
+        // maybe later guarantee something like this
 //        // ...? & raffles must be open for atleast one hour
 //        if data.end < clock.unix_timestamp || data.start + 60 * 60 < data.end {
 //            return err!(CustomError::TimeError);
 //        }
+
+        // raffles be set to go on for longer than two weeks
+        if data.end > clock.unix_timestamp + 60 * 60 * 24 * 14 {
+            return err!(CustomError::TimeError);
+        }
 
         let raffle = &mut ctx.accounts.raffle;
         raffle.id = raffle.key();
@@ -46,6 +52,7 @@ pub mod raffler_anchor {
         raffle.prize_decimals = data.prize_decimals;
         raffle.price = data.price;
         raffle.start = data.start;
+        raffle.date_created = clock.unix_timestamp;
         raffle.end = data.end;
         raffle.ticket_count = 0;
         raffle.max_entries = data.max_entries;
@@ -54,6 +61,8 @@ pub mod raffler_anchor {
         raffle.description = data.description;
         raffle.bump = *ctx.bumps.get("raffle").unwrap();
         raffle.burn = data.burn;
+        raffle.nft_image = data.nft_image;
+        raffle.nft_uri = data.nft_uri;
         raffle.fixed = data.fixed;
 
         let prize_decimals = (ctx.accounts.mint_prize.decimals - raffle.prize_decimals) as u32;
@@ -311,13 +320,13 @@ pub mod raffler_anchor {
 
         let clock = Clock::get()?;
 
-//        if clock.unix_timestamp < raffle.end {
-//            return err!(CustomError::RaffleGoing);
-//        }
+        if clock.unix_timestamp < raffle.end {
+            return err!(CustomError::RaffleGoing);
+        }
 
         let slot_hashes = &ctx.accounts.slot_hashes;
 
-        if slot_hashes.key().to_string() != "SysvarS1otHashes111111111111111111111111111" {
+        if slot_hashes.key().to_string() != "SysvarS1otHashes111111111111111111111111111" || raffle.tickets_purchased == 0 {
             return err!(CustomError::InputError);
         }
 
@@ -350,7 +359,7 @@ pub mod raffler_anchor {
     }
 
     pub fn init_token_accounts(ctx: Context<InitTokenAccounts>) -> Result<()> {
-        if ctx.accounts.raffle.owner != &ID {
+        if ctx.accounts.raffle.to_account_info().data.borrow().len() > 0 && ctx.accounts.raffle.owner != &ID {
             return err!(CustomError::InputError);
         }
 

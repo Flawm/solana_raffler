@@ -226,6 +226,7 @@ pub struct RaffleAccount {
     pub tickets_purchased: u64,
     pub price: u64,
     pub start: i64,
+    pub date_created: i64,
     pub end: i64,
     pub ticket_count: u64,
     pub max_entries: u64,
@@ -240,6 +241,8 @@ pub struct RaffleAccount {
     pub winners_selected: bool,
     pub sent_out: u8,
     pub description: String,
+    pub nft_image: String,
+    pub nft_uri: String,
     pub winners: Vec<u64>
 }
 
