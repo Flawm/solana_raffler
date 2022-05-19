@@ -155,41 +155,51 @@ pub mod raffler_anchor {
             )?;
         }
 
+        anchor_spl::token::close_account(
+            CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::CloseAccount {
+                    account: ctx.accounts.escrow_token_cost.to_account_info(),
+                    destination: ctx.accounts.payer.to_account_info(),
+                    authority: ctx.accounts.raffle.to_account_info()
+                },
+                seeds
+            ),
+        )?;
+
+        anchor_spl::token::close_account(
+            CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::CloseAccount {
+                    account: ctx.accounts.escrow_token_cost.to_account_info(),
+                    destination: ctx.accounts.vlawmz.to_account_info(),
+                    authority: ctx.accounts.raffle.to_account_info()
+                },
+                seeds
+            ),
+        )?;
+
         let raffle = ctx.accounts.raffle.to_account_info();
         let fixed_raffle = ctx.accounts.fixed_raffle.to_account_info();
-        let escrow_token_cost = ctx.accounts.escrow_token_cost.to_account_info();
-        let escrow_token_prize = ctx.accounts.escrow_token_prize.to_account_info();
 
         let payer = ctx.accounts.payer.to_account_info();
         let vlawmz = ctx.accounts.vlawmz.to_account_info();
 
         let mut escrow_lams = raffle.lamports.borrow_mut();
-        let mut escrow_token_prize_lams = escrow_token_prize.lamports.borrow_mut();
-        let mut escrow_token_cost_lams = escrow_token_cost.lamports.borrow_mut();
         let mut fixed_raffle_lams = fixed_raffle.lamports.borrow_mut();
 
         if payer.key == vlawmz.key {
             let mut payer_lams  = payer.lamports.borrow_mut();
             **payer_lams += **escrow_lams;
             **payer_lams += **fixed_raffle_lams;
-            **payer_lams += **escrow_token_cost_lams;
-            **payer_lams += **escrow_token_prize_lams;
         } else {
             let mut vlawmz_lams = vlawmz.lamports.borrow_mut();
             let mut payer_lams  = payer.lamports.borrow_mut();
 
             **vlawmz_lams += **escrow_lams;
-            **vlawmz_lams += **escrow_token_cost_lams;
             **vlawmz_lams += **fixed_raffle_lams / 10;
 
             **payer_lams += **fixed_raffle_lams - **fixed_raffle_lams / 10;
-            **payer_lams += **escrow_token_prize_lams;
         }
 
         **escrow_lams = 0;
         **fixed_raffle_lams = 0;
-        **escrow_token_cost_lams = 0;
-        **escrow_token_prize_lams = 0;
 
         Ok(())
     }
