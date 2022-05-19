@@ -14,7 +14,7 @@ pub mod raffler_anchor {
     use super::*;
 
     pub fn create_raffle(ctx: Context<CreateRaffle>, data: CreateRaffleData) -> Result<()> {
-        if data.start >= data.end || data.prize_quantity == 0 || data.price == 0 || ctx.accounts.token_prize.amount < data.prize_quantity || data.prize_quantity < data.per_win {
+        if data.start >= data.end || data.prize_quantity == 0 || data.price == 0 || ctx.accounts.token_prize.amount < data.prize_quantity {
             return err!(CustomError::InputError);
         }
 
@@ -77,7 +77,7 @@ pub mod raffler_anchor {
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
-        if &ticket_data[8..40] != ctx.accounts.raffle.id.as_ref() {
+        if ctx.accounts.fixed_raffle.owner != &ID || &ticket_data[8..40] != ctx.accounts.raffle.id.as_ref() {
             return err!(CustomError::InputError);
         }
 
@@ -253,7 +253,7 @@ pub mod raffler_anchor {
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
-        if &ticket_data[8..40] != raffle.id.as_ref() {
+        if ctx.accounts.fixed_raffle.owner != &ID || &ticket_data[8..40] != raffle.id.as_ref() {
             return err!(CustomError::InputError);
         }
 
@@ -305,7 +305,7 @@ pub mod raffler_anchor {
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
-        if &ticket_data[8..40] != raffle.id.as_ref() {
+        if ctx.accounts.fixed_raffle.owner != &ID || &ticket_data[8..40] != raffle.id.as_ref() {
             return err!(CustomError::InputError);
         }
 
@@ -350,6 +350,10 @@ pub mod raffler_anchor {
     }
 
     pub fn init_token_accounts(ctx: Context<InitTokenAccounts>) -> Result<()> {
+        if ctx.accounts.raffle.owner != &ID {
+            return err!(CustomError::InputError);
+        }
+
         if ctx.accounts.escrow_token_prize.to_account_info().data.borrow().len() == 0 {
             anchor_spl::associated_token::create(
                 CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::associated_token::Create {
