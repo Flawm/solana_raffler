@@ -240,7 +240,7 @@ const raffler_idl = JSON.parse(
     fs.readFileSync('./target/idl/raffler_anchor.json', 'utf8'),
   ),
   programId = new anchor.web3.PublicKey(
-    '3XsaSBCDT4JhRuxpWjHRTYkzKLqWRgCuN1wyggvFuSsM',
+    'RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9',
   ),
   program = new anchor.Program(raffler_idl, programId),
   payer = program.provider,
@@ -266,19 +266,19 @@ const buyer_program = new anchor.Program(raffler_idl, programId);
 
 (async () => {
   try {
-    //  await testCreateAndClose();
+    await testCreateAndClose();
     //await testCreateAndForceClose();
     await testCreate();
     //    console.log(await testBuyRaffle());
-    //for (let i = 0; i < 50; i++) {
-    //  console.log(await testBuyRaffle());
-    //}
-    //    for (let i = 0; i < 10; i++) {
-    //      console.log(await testPickWinner());
-    //    }
-    //for (let i = 0; i < 10; i++) {
-    //  console.log(await testSendWinner());
-    //}
+    for (let i = 0; i < 50; i++) {
+      console.log(await testBuyRaffle());
+    }
+    for (let i = 0; i < 10; i++) {
+      console.log(await testPickWinner());
+    }
+    for (let i = 0; i < 10; i++) {
+      console.log(await testSendWinner());
+    }
     console.log(await testCreateAndClose());
   } catch (e) {
     console.log(e);

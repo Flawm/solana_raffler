@@ -7,7 +7,7 @@ use {
     std::collections::BTreeSet,
 };
 
-declare_id!("3XsaSBCDT4JhRuxpWjHRTYkzKLqWRgCuN1wyggvFuSsM");
+declare_id!("RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9");
 
 #[program]
 pub mod raffler_anchor {
