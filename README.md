@@ -1,6 +1,6 @@
 # Solana Raffler
 
-A Solana raffling program built on Anchor. Deployed at `RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9` on devnet - mainnet coming soon :tm:
+A Solana raffling program built on Anchor. Deployed at `RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9` on devnet & mainnet
 
 ## Features
 

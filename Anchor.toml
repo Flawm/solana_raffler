@@ -1,7 +1,11 @@
+anchor_version = "0.24.2"
+
 [features]
 seeds = false
 [programs.localnet]
-raffler_anchor = "CGyvW2JhbWYceG91qC14SdT1BmQKhpkHhm5rA2MqsjTa"
+raffler_anchor = "RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9"
+[programs.mainnet]
+raffler_anchor = "RafXcAJfB3wVzyH7cHuDqyVjYeQ4Qy8RjQEbCPvttK9"
 
 [registry]
 url = "https://anchor.projectserum.com"
