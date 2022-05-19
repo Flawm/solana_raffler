@@ -36,7 +36,7 @@ pub mod raffler_anchor {
 //            return err!(CustomError::TimeError);
 //        }
 
-        // raffles be set to go on for longer than two weeks
+        // raffles cant be set to go on for longer than two weeks
         if data.end > clock.unix_timestamp + 60 * 60 * 24 * 14 {
             return err!(CustomError::TimeError);
         }
