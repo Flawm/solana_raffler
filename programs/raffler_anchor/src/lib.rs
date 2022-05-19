@@ -1,5 +1,6 @@
 pub mod error;
 pub mod state;
+pub mod security;
 
 use {
     anchor_lang::prelude::*,
