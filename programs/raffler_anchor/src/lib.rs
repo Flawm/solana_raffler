@@ -21,7 +21,7 @@ pub mod raffler_anchor {
 
         // this needs to be divisible
         if data.prize_quantity % data.per_win != 0 {
-            return err!(CustomError::InputError);
+            return err!(CustomError::DivisibleError);
         }
 
         // later
@@ -30,12 +30,6 @@ pub mod raffler_anchor {
         }
 
         let clock = Clock::get()?;
-
-        // maybe later guarantee something like this
-//        // ...? & raffles must be open for atleast one hour
-//        if data.end < clock.unix_timestamp || data.start + 60 * 60 < data.end {
-//            return err!(CustomError::TimeError);
-//        }
 
         // raffles can't be longer than two weeks unless they're set to be open forever, in which case they must sell out
         if data.end > clock.unix_timestamp + 60 * 60 * 24 * 14 && data.end != i64::MAX {
@@ -65,6 +59,10 @@ pub mod raffler_anchor {
         raffle.nft_image = data.nft_image;
         raffle.nft_uri = data.nft_uri;
         raffle.fixed = data.fixed;
+
+        if data.cost_decimals != ctx.accounts.mint_cost.decimals || data.prize_decimals != ctx.accounts.mint_prize.decimals {
+            return err!(CustomError::DecimalError);
+        }
 
         let prize_decimals = (ctx.accounts.mint_prize.decimals - raffle.prize_decimals) as u32;
 

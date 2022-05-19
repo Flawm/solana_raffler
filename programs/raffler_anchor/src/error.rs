@@ -36,7 +36,13 @@ pub enum CustomError {
 
     #[msg("The time parameters don't add up.")]
     TimeError,
-    #[msg("The payment needs to come to an even number!")]
 
-    FixedError
+    #[msg("later")]
+    FixedError,
+
+    #[msg("The payment needs to come to an even number!")]
+    DivisibleError,
+
+    #[msg("The payment needs to come to an even number!")]
+    DecimalError
 }
