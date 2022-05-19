@@ -340,7 +340,7 @@ pub mod raffler_anchor {
 
         let clock = Clock::get()?;
 
-        if clock.unix_timestamp < raffle.end {
+        if clock.unix_timestamp < raffle.end && raffle.max_entries > raffle.tickets_purchased {
             return err!(CustomError::RaffleGoing);
         }
 
