@@ -37,8 +37,8 @@ pub mod raffler_anchor {
 //            return err!(CustomError::TimeError);
 //        }
 
-        // raffles cant be set to go on for longer than two weeks
-        if data.end > clock.unix_timestamp + 60 * 60 * 24 * 14 {
+        // raffles can't be longer than two weeks unless they're set to be open forever, in which case they must sell out
+        if data.end > clock.unix_timestamp + 60 * 60 * 24 * 14 && data.end != i64::MAX {
             return err!(CustomError::TimeError);
         }
 
