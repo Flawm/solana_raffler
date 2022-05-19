@@ -66,10 +66,10 @@ pub struct CreateRaffle<'info> {
     pub token_program: Program<'info, Token>,
     #[account(
         mut,
-        constraint = raffle.key() == escrow_token.owner,
-        constraint = escrow_token.mint == mint_prize.key()
+        constraint = raffle.key() == escrow_token_prize.owner,
+        constraint = escrow_token_prize.mint == mint_prize.key()
     )]
-    pub escrow_token: Account<'info, TokenAccount>
+    pub escrow_token_prize: Account<'info, TokenAccount>
 }
 
 #[derive(Accounts)]

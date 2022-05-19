@@ -70,7 +70,7 @@ pub mod raffler_anchor {
         anchor_spl::token::transfer(
             CpiContext::new(ctx.accounts.token_program.to_account_info(), anchor_spl::token::Transfer {
                 from: ctx.accounts.token_prize.to_account_info(),
-                to:  ctx.accounts.escrow_token.to_account_info(),
+                to:  ctx.accounts.escrow_token_prize.to_account_info(),
                 authority:  ctx.accounts.payer.to_account_info()
             }),
             raffle.prize_quantity * 10_u64.pow(prize_decimals),
