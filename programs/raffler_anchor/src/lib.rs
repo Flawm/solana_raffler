@@ -60,7 +60,7 @@ pub mod raffler_anchor {
         raffle.nft_uri = data.nft_uri;
         raffle.fixed = data.fixed;
 
-        if data.cost_decimals != ctx.accounts.mint_cost.decimals || data.prize_decimals != ctx.accounts.mint_prize.decimals {
+        if data.cost_decimals > ctx.accounts.mint_cost.decimals || data.prize_decimals > ctx.accounts.mint_prize.decimals {
             return err!(CustomError::DecimalError);
         }
 
@@ -81,7 +81,7 @@ pub mod raffler_anchor {
     }
 
     pub fn close_raffle(ctx: Context<CloseRaffle>, force_close: bool) -> Result<()> {
-        let is_admin = ctx.accounts.payer.key.to_string() == VLAWMZ_KEY && force_close;
+        let is_admin = ctx.accounts.payer.key.to_string() == MOON_KEY && force_close;
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
         let ticket_data = &mut ticket_account.data.borrow_mut();
 
@@ -165,8 +165,8 @@ pub mod raffler_anchor {
 
         anchor_spl::token::close_account(
             CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), anchor_spl::token::CloseAccount {
-                    account: ctx.accounts.escrow_token_cost.to_account_info(),
-                    destination: ctx.accounts.vlawmz.to_account_info(),
+                    account: ctx.accounts.escrow_token_prize.to_account_info(),
+                    destination: ctx.accounts.moon.to_account_info(),
                     authority: ctx.accounts.raffle.to_account_info()
                 },
                 seeds
@@ -177,21 +177,21 @@ pub mod raffler_anchor {
         let fixed_raffle = ctx.accounts.fixed_raffle.to_account_info();
 
         let payer = ctx.accounts.payer.to_account_info();
-        let vlawmz = ctx.accounts.vlawmz.to_account_info();
+        let moon = ctx.accounts.moon.to_account_info();
 
         let mut escrow_lams = raffle.lamports.borrow_mut();
         let mut fixed_raffle_lams = fixed_raffle.lamports.borrow_mut();
 
-        if payer.key == vlawmz.key {
+        if payer.key == moon.key {
             let mut payer_lams  = payer.lamports.borrow_mut();
             **payer_lams += **escrow_lams;
             **payer_lams += **fixed_raffle_lams;
         } else {
-            let mut vlawmz_lams = vlawmz.lamports.borrow_mut();
+            let mut moon_lams = moon.lamports.borrow_mut();
             let mut payer_lams  = payer.lamports.borrow_mut();
 
-            **vlawmz_lams += **escrow_lams;
-            **vlawmz_lams += **fixed_raffle_lams / 10;
+            **moon_lams += **escrow_lams;
+            **moon_lams += **fixed_raffle_lams / 10;
 
             **payer_lams += **fixed_raffle_lams - **fixed_raffle_lams / 10;
         }

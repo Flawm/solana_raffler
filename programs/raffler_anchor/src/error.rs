@@ -43,6 +43,6 @@ pub enum CustomError {
     #[msg("The payment needs to come to an even number!")]
     DivisibleError,
 
-    #[msg("The payment needs to come to an even number!")]
+    #[msg("There is an error with the given decimals")]
     DecimalError
 }

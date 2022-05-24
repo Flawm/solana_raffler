@@ -5,7 +5,7 @@ use {
     anchor_spl::associated_token::{AssociatedToken}
 };
 
-pub const VLAWMZ_KEY: &str = "VLawmZTgLAbdeqrU579ohsdey9H1h3Mi1UeUJpg2mQB";
+pub const MOON_KEY: &str = "MoonJpLwzBSu2SEeXe42rDySA21NifCuPBDPr5jExET";
 
 pub const RAFFLE_ENTRY_OFFSET: usize = 8 + 32 + 4;
 pub const RAFFLE_ENTRY_SIZE: usize = 33;
@@ -80,20 +80,20 @@ pub struct CloseRaffle<'info> {
     pub mint_cost: Account<'info, Mint>,
     #[account(
         mut,
-        constraint = payer.key == &token_prize.owner || payer.key.to_string() == VLAWMZ_KEY,
+        constraint = payer.key == &token_prize.owner || payer.key.to_string() == MOON_KEY,
         constraint = mint_prize.key() == token_prize.mint
     )]
     pub token_prize: Account<'info, TokenAccount>,
     #[account(
         mut,
-        constraint = payer.key == &token_cost.owner || payer.key.to_string() == VLAWMZ_KEY,
+        constraint = payer.key == &token_cost.owner || payer.key.to_string() == MOON_KEY,
         constraint = mint_cost.key() == token_cost.mint
     )]
     pub token_cost: Box<Account<'info, TokenAccount>>,
     pub mint_prize: Box<Account<'info, Mint>>,
     #[account(
         mut,
-        constraint = raffle.owner == *payer.key || payer.key.to_string() == VLAWMZ_KEY,
+        constraint = raffle.owner == *payer.key || payer.key.to_string() == MOON_KEY,
         constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]
@@ -120,9 +120,9 @@ pub struct CloseRaffle<'info> {
     pub escrow_token_cost: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = vlawmz.key().to_string() == VLAWMZ_KEY,
+        constraint = moon.key().to_string() == MOON_KEY,
     )]
-    pub vlawmz: SystemAccount<'info>,
+    pub moon: SystemAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -200,7 +200,7 @@ pub struct SetWinner<'info> {
     pub mint_prize: Box<Account<'info, Mint>>,
     #[account(
         mut,
-        constraint = raffle.owner == *payer.key || payer.key.to_string() == VLAWMZ_KEY,
+        constraint = raffle.owner == *payer.key || payer.key.to_string() == MOON_KEY,
         constraint = raffle.mint == mint_cost.key(),
         constraint = raffle.prize == mint_prize.key()
     )]

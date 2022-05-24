@@ -94,7 +94,7 @@
       let ctx_accounts = {
         accounts: {
           payer: payer.wallet.publicKey,
-          mintCost: mint,
+          mintCost,
           mintPrize,
           tokenPrize,
           tokenCost,
@@ -117,7 +117,7 @@
       price: new anchor.BN(1),
       start: new anchor.BN(150),
       end: new anchor.BN(Date.now() / 1000 + 5),
-      costDecimals: 1,
+      costDecimals: 9,
       prizeDecimals: 9,
       maxEntries: new anchor.BN(99999),
       perWin: new anchor.BN(1),
@@ -175,8 +175,8 @@
         escrowTokenPrize,
         escrowTokenCost,
         fixedRaffle: fixedRaffle.publicKey,
-        vlawmz: new anchor.web3.PublicKey(
-          'VLawmZTgLAbdeqrU579ohsdey9H1h3Mi1UeUJpg2mQB',
+        moon: new anchor.web3.PublicKey(
+          'MoonJpLwzBSu2SEeXe42rDySA21NifCuPBDPr5jExET',
         ),
       },
     };
