@@ -83,7 +83,7 @@ pub mod raffler_anchor {
     pub fn close_raffle(ctx: Context<CloseRaffle>, force_close: bool) -> Result<()> {
         let is_admin = ctx.accounts.payer.key.to_string() == MOON_KEY && force_close;
         let ticket_account = ctx.accounts.fixed_raffle.to_account_info();
-        let ticket_data = &mut ticket_account.data.borrow_mut();
+        let ticket_data = ticket_account.data.borrow();
 
         if ctx.accounts.fixed_raffle.owner != &ID || &ticket_data[8..40] != ctx.accounts.raffle.id.as_ref() {
             return err!(CustomError::InputError);
